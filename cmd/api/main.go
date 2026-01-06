@@ -26,7 +26,6 @@ import (
 )
 
 func main() {
-	// Настройка логгера
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,
 	}))
@@ -42,50 +41,43 @@ func main() {
 	defer pool.Close()
 
 	store := postgres.NewStorage(pool)
-
-	// JWT
 	tokenService := auth.NewTokenService(cfg)
 
-	// Gin
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
 	router.Use(gin.Logger(), gin.Recovery())
 
-	// Health check
-	router.GET("/health", func(c * gin.Context) {
+	router.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
 
 	// Telegram webhook
-	// Telegram webhook
 	botToken := os.Getenv("TELEGRAM_BOT_TOKEN")
 	if botToken != "" {
-	bot, err := tgbotapi.NewBotAPI(botToken)
-	if err != nil {
-		slog.Error("Не удалось инициализировать Telegram бота", "error", err)
-		os.Exit(1)
-	}
-
-	// Устанавливаем webhook через MakeRequest
-	webhookURL := os.Getenv("RENDER_EXTERNAL_URL") + "/telegram"
-	if _, err := bot.MakeRequest("setWebhook", map[string]string{"url": webhookURL}); err != nil {
-		slog.Error("Не удалось установить webhook", "error", err)
-		os.Exit(1)
-	}
-	slog.Info("Telegram webhook установлен", "url", webhookURL)
-
-		// Обработка входящих сообщений
-	router.POST("/telegram", func(c *gin.Context) {
-		var update tgbotapi.Update
-		if err := c.ShouldBindJSON(&update); err != nil {
-			slog.Error("Ошибка парсинга обновления", "error", err)
-			c.Status(http.StatusBadRequest)
-			return
+		bot, err := tgbotapi.NewBotAPI(botToken)
+		if err != nil {
+			slog.Error("Не удалось инициализировать Telegram бота", "error", err)
+			os.Exit(1)
 		}
-		if update.Message == nil {
-			c.Status(http.StatusOK)
-			return
+
+		webhookURL := os.Getenv("RENDER_EXTERNAL_URL") + "/telegram"
+		if _, err := bot.MakeRequest("setWebhook", map[string]string{"url": webhookURL}); err != nil {
+			slog.Error("Не удалось установить webhook", "error", err)
+			os.Exit(1)
 		}
+		slog.Info("Telegram webhook установлен", "url", webhookURL)
+
+		router.POST("/telegram", func(c *gin.Context) {
+			var update tgbotapi.Update
+			if err := c.ShouldBindJSON(&update); err != nil {
+				slog.Error("Ошибка парсинга обновления", "error", err)
+				c.Status(http.StatusBadRequest)
+				return
+			}
+			if update.Message == nil {
+				c.Status(http.StatusOK)
+				return
+			}
 
 			chatID := update.Message.Chat.ID
 			userID := int64(update.Message.From.ID)
@@ -118,12 +110,11 @@ func main() {
 				msgText, errHandle = handleSearchCategory(store, userID, catName)
 
 			case strings.HasPrefix(text, "/delete_bank "):
-				bankName := strings.TrimSpace(text[14:])
 				parts := strings.Split(text, " ")
 				if len(parts) < 2 {
 					msgText = "❌ Используй: /delete_bank Банк"
 				} else {
-					bankName = parts[1]
+					bankName := parts[1]
 					errHandle = handleDeleteBank(store, userID, bankName)
 					if errHandle == nil {
 						msgText = "✅ Банк удалён"
@@ -158,20 +149,20 @@ func main() {
 				msgText = "❌ Ошибка: " + errHandle.Error()
 			}
 
-			// Отправляем ответ
+			// 🔥 ЕДИНСТВЕННАЯ ОТПРАВКА ОТВЕТА
 			msg := tgbotapi.NewMessage(chatID, msgText)
 			msg.ParseMode = "Markdown"
-			_, _ = bot.Send(msg)
+			if _, err := bot.Send(msg); err != nil {
+				slog.Error("Не удалось отправить ответ", "error", err)
+			}
 
 			c.Status(http.StatusOK)
 		})
 	}
 
-	// API-эндпоинты
+	// API
 	router.POST("/api/v1/login", func(c *gin.Context) {
-		var req struct {
-			UserID int64 `json:"user_id" binding:"required,min=1"`
-		}
+		var req struct{ UserID int64 `json:"user_id"` }
 		if err := c.ShouldBindJSON(&req); err != nil {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "user_id required"})
 			return
@@ -198,7 +189,6 @@ func main() {
 		v1.DELETE("/month/bank/category", cashbackHandler(store).DeleteCategoryFromBank)
 	}
 
-	// Запуск сервера
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "10000"
@@ -209,10 +199,9 @@ func main() {
 	}
 }
 
-// --- ФУНКЦИИ ОБРАБОТКИ ДЛЯ БОТА (копируем из cmd/bot/main.go) ---
+// --- Вспомогательные функции ---
 
 func cashbackHandler(store any) *handler.CashbackHandler {
-	// Обход типизации для краткости
 	return handler.NewCashbackHandler(store.(handler.CombinedStorage))
 }
 
@@ -266,8 +255,6 @@ func saveFromMessage(store *postgres.Storage, userID int64, input string) error 
 
 	return store.PatchMonth(context.Background(), userID, month, bankWithCat)
 }
-
-// ... остальные функции handleMonth, handleSearchBank и т.д. (скопируй их из cmd/bot/main.go) ...
 
 func handleMonth(store *postgres.Storage, userID int64) (string, error) {
 	month := time.Now().Format("2006-01")
@@ -402,3 +389,5 @@ func fixEncoding(s string) string {
 	// Если не получилось — заменяем невалидные символы
 	return strings.ToValidUTF8(s, "")
 }
+
+// ... остальные функции (saveFromMessage, handleMonth и т.д.) — без изменений ...
