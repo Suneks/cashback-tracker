@@ -23,7 +23,7 @@ func NewTokenService(cfg config.Config) *TokenService {
 }
 
 // Генерация токена
-func (s *TokenService) GenerateToken(userID int) (string, error) {
+func (s *TokenService) GenerateToken(userID int64) (string, error) {
 	expTime := time.Now().Add(s.expiresIn)
 	claims := jwt.MapClaims{
 		"user_id": userID,
