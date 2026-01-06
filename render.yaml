@@ -1,0 +1,18 @@
+# render.yaml
+services:
+  - type: web
+    name: cashback-api
+    env: go
+    region: frankfurt        # или ближайший к тебе
+    buildCommand: go build -o ./bin/api ./cmd/api
+    startCommand: ./bin/api
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true   # Render сгенерирует безопасный секрет
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false           # ты задашь его вручную
+
+  - type: postgres
+    name: cashback-db
+    databaseName: cashback
+    plan: free
