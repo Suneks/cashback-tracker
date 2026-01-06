@@ -6,6 +6,7 @@ services:
     region: frankfurt        # или ближайший к тебе
     buildCommand: go build -o ./bin/api ./cmd/api
     startCommand: ./bin/api
+    goVersion: "1.25"  # ← Render использует последнюю 1.25.x
     envVars:
       - key: JWT_SECRET
         generateValue: true   # Render сгенерирует безопасный секрет
