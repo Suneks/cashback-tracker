@@ -89,14 +89,14 @@ func main() {
 
 			switch {
 			case text == "/start" || text == "/help":
-				msgText = "🏦 *Кэшбэк-трекер*\n\n" +
+				msgText = "🏦 Кэшбэк-трекер\n\n" +
 					"Команды:\n" +
-					"`/add` — добавить банк: `Сбер: Аптеки 5, Такси 10`\n" +
-					"`/month` — показать кэшбэк за текущий месяц\n" +
-					"`/search_bank Сбер` — найти категории по банку\n" +
-					"`/search_cat Аптеки` — найти банки по категории\n" +
-					"`/delete_bank Сбер` — удалить банк\n" +
-					"`/delete_cat Сбер Аптеки` — удалить категорию"
+					"/add — добавить банк: Сбер: Аптеки 5, Такси 10\n" +
+					"/month — показать кэшбэк за текущий месяц\n" +
+					"/search_bank Сбер — найти категории по банку\n" +
+					"/search_cat Аптеки — найти банки по категории\n" +
+					"/delete_bank Сбер — удалить банк\n" +
+					"/delete_cat Сбер Аптеки — удалить категорию"
 
 			case text == "/month":
 				msgText, errHandle = handleMonth(store, userID)
@@ -151,7 +151,7 @@ func main() {
 
 			// 🔥 ЕДИНСТВЕННАЯ ОТПРАВКА ОТВЕТА
 			msg := tgbotapi.NewMessage(chatID, msgText)
-			msg.ParseMode = "Markdown"
+			// msg.ParseMode = "Markdown"
 			if _, err := bot.Send(msg); err != nil {
 				slog.Error("Не удалось отправить ответ", "error", err)
 			}
@@ -267,7 +267,7 @@ func handleMonth(store *postgres.Storage, userID int64) (string, error) {
 	}
 
 	var lines []string
-	lines = append(lines, fmt.Sprintf("🏦 *Кэшбэк за %s*", month))
+	lines = append(lines, fmt.Sprintf("🏦 Кэшбэк за %s", month))
 	for _, bwc := range cashback.Banks {
 		lines = append(lines, fmt.Sprintf("\n*%s*", bwc.Bank.Name))
 		for _, cc := range bwc.Categories {
@@ -302,12 +302,12 @@ func handleSearchBank(store *postgres.Storage, userID int64, bankName string) (s
 	}
 
 	if targetBank == nil {
-		return fmt.Sprintf("📭 Нет кэшбэка по банку *%s*", bankName), nil
+		return fmt.Sprintf("📭 Нет кэшбэка по банку %s", bankName), nil
 	}
 
 	// Формируем ответ с процентами
 	var lines []string
-	lines = append(lines, fmt.Sprintf("🔍 *Категории для %s*", bankName))
+	lines = append(lines, fmt.Sprintf("🔍 Категории для %s", bankName))
 	for _, cc := range targetBank.Categories {
 		lines = append(lines, fmt.Sprintf("- %s: %.1f%%", cc.Category.Name, cc.Percent))
 	}
@@ -342,11 +342,11 @@ func handleSearchCategory(store *postgres.Storage, userID int64, categoryName st
 	}
 
 	if len(banksWithCategory) == 0 {
-		return fmt.Sprintf("📭 Нет кэшбэка по категории *%s*", categoryName), nil
+		return fmt.Sprintf("📭 Нет кэшбэка по категории %s", categoryName), nil
 	}
 
 	var lines []string
-	lines = append(lines, fmt.Sprintf("🔍 *Банки с кэшбэком по %s*", categoryName))
+	lines = append(lines, fmt.Sprintf("🔍 Банки с кэшбэком по %s", categoryName))
 	for _, bwc := range banksWithCategory {
 		cc := bwc.Categories[0]
 		lines = append(lines, fmt.Sprintf("- %s: %.1f%%", bwc.Bank.Name, cc.Percent))
