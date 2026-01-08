@@ -6,7 +6,8 @@ services:
     region: frankfurt        # или ближайший к тебе
     buildCommand: go build -o ./bin/api ./cmd/api
     startCommand: ./bin/api
-    goVersion: "1.25.4  # ← Render использует последнюю 1.25.x
+    goVersion: "1.25.4"
+    preDeployCommand: go run cmd/migrate/main.go  # ← запуск миграций ПЕРЕД стартом
     envVars:
       - key: JWT_SECRET
         generateValue: true   # Render сгенерирует безопасный секрет
