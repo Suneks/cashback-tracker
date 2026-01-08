@@ -23,7 +23,30 @@ import (
 	tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/text/encoding/charmap"
+
+	"database/sql"	
+	"github.com/pressly/goose/v3"
+	_ "github.com/jackc/pgx/v5/stdlib"
 )
+
+func runMigrations(ctx context.Context, conn string) error {
+	db, err := sql.Open("pgx", conn)
+	if err != nil {
+		return fmt.Errorf("не удалось открыть БД для миграций: %w", err)
+	}
+	defer db.Close()
+
+	// Путь к миграциям — относительно текущей директории
+	migrationsDir := "migrations"
+
+	slog.Info("Применяем миграции", "dir", migrationsDir)
+
+	if err := goose.Up(db, migrationsDir); err != nil {
+		return fmt.Errorf("ошибка миграций: %w", err)
+	}
+
+	return nil
+}
 
 func main() {
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
@@ -42,6 +65,11 @@ func main() {
 
 	store := postgres.NewStorage(pool)
 	tokenService := auth.NewTokenService(cfg)
+
+	if err := runMigrations(context.Background(), cfg.DBConn); err != nil {
+	slog.Error("Миграции не прошли", "error", err)
+	os.Exit(1)
+}
 
 	gin.SetMode(gin.ReleaseMode)
 	router := gin.New()
